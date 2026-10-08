@@ -1,0 +1,36 @@
+{
+  "operationIds": [
+    "auth_signup",
+    "auth_login",
+    "auth_logout",
+    "posts_create",
+    "posts_update",
+    "posts_delete",
+    "admin_posts_list",
+    "posts_list",
+    "posts_get",
+    "post_ratings_list",
+    "ratings_upsert",
+    "ratings_update",
+    "ratings_delete"
+  ],
+  "tags": [
+    "auth",
+    "admin-posts",
+    "posts",
+    "ratings"
+  ],
+  "screenIds": [
+    "SCREEN-003",
+    "SCREEN-004",
+    "SCREEN-005",
+    "SCREEN-006",
+    "SCREEN-001",
+    "SCREEN-002",
+    "SCREEN-403",
+    "SCREEN-404",
+    "SCREEN-OFFLINE"
+  ],
+  "sliceId": "slice-01-full",
+  "buildRunId": "build-5aec7361-c8d2-4d5d-8a78-78440598051e"
+}

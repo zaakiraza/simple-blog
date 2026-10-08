@@ -1,0 +1,686 @@
+openapi: 3.1.0
+info:
+  title: Simple Blog API
+  version: 1.0.0
+  description: |
+    REST API for Simple Blog: cookie-session auth, public post browsing,
+    one 1–5 star rating with optional comment per user per post, and admin
+    post management with cascade delete of ratings.
+tags:
+  - name: auth
+    description: Signup, login, and logout (cookie sessions)
+  - name: posts
+    description: Public blog post listing and detail
+  - name: admin-posts
+    description: Admin-only post management
+  - name: ratings
+    description: Ratings and reviews
+paths:
+  /auth/signup:
+    post:
+      operationId: auth_signup
+      tags:
+        - auth
+      x-story-ids:
+        - STORY-001
+      x-models:
+        - User
+        - Session
+      summary: Create a reader account and sign in
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - username
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                  minLength: 1
+                password:
+                  type: string
+                  minLength: 1
+      responses:
+        "201":
+          description: Account created and signed in; session cookie set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Email or username already taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/login:
+    post:
+      operationId: auth_login
+      tags:
+        - auth
+      x-story-ids:
+        - STORY-002
+      x-models:
+        - User
+        - Session
+      summary: Log in with email or username
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identifier
+                - password
+              properties:
+                identifier:
+                  type: string
+                  description: Email or username
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Signed in; session cookie set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Incorrect credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/logout:
+    post:
+      operationId: auth_logout
+      tags:
+        - auth
+      x-story-ids:
+        - STORY-002
+      x-models:
+        - Session
+      summary: Log out the current session
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Logged out; session cookie cleared
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /posts:
+    get:
+      operationId: posts_list
+      tags:
+        - posts
+      x-story-ids:
+        - STORY-006
+      x-models:
+        - Post
+        - Rating
+      summary: List all posts newest-first with average rating and review count
+      security: []
+      responses:
+        "200":
+          description: Posts ordered by createdAt descending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostWithStats"
+    post:
+      operationId: posts_create
+      tags:
+        - admin-posts
+      x-story-ids:
+        - STORY-003
+      x-models:
+        - Post
+      summary: Create a blog post (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostInput"
+      responses:
+        "201":
+          description: Post created; author and timestamps set automatically
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /posts/{id}:
+    get:
+      operationId: posts_get
+      tags:
+        - posts
+      x-story-ids:
+        - STORY-007
+      x-models:
+        - Post
+        - Rating
+      summary: Get a single post with average rating and review count
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Post detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostWithStats"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: posts_update
+      tags:
+        - admin-posts
+      x-story-ids:
+        - STORY-004
+      x-models:
+        - Post
+      summary: Update a blog post (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostInput"
+      responses:
+        "200":
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: posts_delete
+      tags:
+        - admin-posts
+      x-story-ids:
+        - STORY-005
+      x-models:
+        - Post
+        - Rating
+      summary: Delete a post and cascade-delete its ratings (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "204":
+          description: Post and all its ratings permanently deleted
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/posts:
+    get:
+      operationId: admin_posts_list
+      tags:
+        - admin-posts
+      x-story-ids:
+        - STORY-004
+        - STORY-005
+      x-models:
+        - Post
+      summary: Management list of all posts (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All posts newest-first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostWithStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /posts/{id}/ratings:
+    get:
+      operationId: post_ratings_list
+      tags:
+        - ratings
+      x-story-ids:
+        - STORY-007
+      x-models:
+        - Rating
+        - User
+      summary: List a post's ratings and reviews newest-first
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Ratings with reviewer usernames, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RatingWithUser"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /ratings:
+    post:
+      operationId: ratings_upsert
+      tags:
+        - ratings
+      x-story-ids:
+        - STORY-008
+      x-models:
+        - Rating
+      summary: |
+        Submit the caller's rating for a post (creates or updates their single
+        rating; upsert keyed on (postId, userId)).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - postId
+                - stars
+              properties:
+                postId:
+                  type: string
+                stars:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        "200":
+          description: Existing rating updated (resubmission by same user)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rating"
+        "201":
+          description: Rating created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rating"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /ratings/{id}:
+    put:
+      operationId: ratings_update
+      tags:
+        - ratings
+      x-story-ids:
+        - STORY-009
+      x-models:
+        - Rating
+      summary: Edit a rating (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RatingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - stars
+              properties:
+                stars:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        "200":
+          description: Updated rating
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rating"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: You can only edit your own rating
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: ratings_delete
+      tags:
+        - ratings
+      x-story-ids:
+        - STORY-009
+        - STORY-010
+      x-models:
+        - Rating
+      summary: Delete a rating (owner or admin moderation)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RatingId"
+      responses:
+        "204":
+          description: Rating deleted
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Not the owner and not admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    PostId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Post id
+    RatingId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Rating id
+  responses:
+    BadRequest:
+      description: Validation error (e.g. "Please choose 1 to 5 stars")
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Sign in required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - username
+        - role
+        - createdAt
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        role:
+          type: string
+          enum:
+            - user
+            - admin
+        createdAt:
+          type: string
+          format: date-time
+    Session:
+      type: object
+      required:
+        - id
+        - userId
+        - createdAt
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    AuthResult:
+      type: object
+      required:
+        - user
+        - session
+        - accessToken
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        session:
+          $ref: "#/components/schemas/Session"
+        accessToken:
+          type: string
+          description: "Bearer JWT. Send it as the Authorization header: Bearer <accessToken>."
+    Post:
+      type: object
+      required:
+        - id
+        - title
+        - body
+        - authorId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        excerpt:
+          type:
+            - string
+            - "null"
+        coverImageUrl:
+          type:
+            - string
+            - "null"
+        authorId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PostWithStats:
+      allOf:
+        - $ref: "#/components/schemas/Post"
+        - type: object
+          properties:
+            averageRating:
+              type:
+                - number
+                - "null"
+              description: Mean star value (0–5), null when unrated
+            ratingCount:
+              type: integer
+            authorUsername:
+              type: string
+    PostInput:
+      type: object
+      required:
+        - title
+        - body
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        body:
+          type: string
+        excerpt:
+          type: string
+        coverImageUrl:
+          type: string
+          format: uri
+    Rating:
+      type: object
+      required:
+        - id
+        - postId
+        - userId
+        - stars
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        postId:
+          type: string
+        userId:
+          type: string
+        stars:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type:
+            - string
+            - "null"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RatingWithUser:
+      allOf:
+        - $ref: "#/components/schemas/Rating"
+        - type: object
+          properties:
+            username:
+              type: string
